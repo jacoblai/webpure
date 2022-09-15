@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/cloudwego/hertz/pkg/app/server"
 	nginxparser "github.com/faceair/nginx-parser"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
@@ -13,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
@@ -35,10 +38,21 @@ func initConfig(conf string) {
 	go func() {
 		for {
 			<-s
+			closeAllSvc()
 			loadConfig(conf, false)
-			log.Println("Reloaded")
+			startSvc()
+			log.Println("WebPure Reloaded")
 		}
 	}()
+}
+
+func closeAllSvc() {
+	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	for n, svc := range svcs {
+		_ = svc.Shutdown(ctx)
+		log.Println(n, "shutdown")
+	}
+	svcs = make(map[string]*server.Hertz)
 }
 
 func loadConfig(conf string, fail bool) {
