@@ -68,7 +68,7 @@ func startSvc() {
 		log.Println(cf.ServerName, cf.Addr, "online")
 		go func(conf Config) {
 			h := server.Default(
-				server.WithHostPorts(":" + conf.Addr),
+				server.WithHostPorts(conf.ServerName + ":" + conf.Addr),
 			)
 			if !strings.HasSuffix(conf.Root, "/") {
 				conf.Root += "/"
