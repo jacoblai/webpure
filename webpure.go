@@ -7,31 +7,38 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"log"
-	"os"
-	"path/filepath"
+	"syscall"
 	"time"
 )
 
-func main() {
-	var (
-		addr    = flag.String("l", ":8080", "绑定Host地址")
-		webPath = flag.String("p", "*", "前端静态文件夹本地绝对路径，默认值表示以当前程序所在路径为服务")
-	)
-	flag.Parse()
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
+func init() {
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		log.Fatal(err)
 	}
-	if *webPath != "*" {
-		dir = *webPath
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		log.Fatal(err)
 	}
+	var (
+		conf = flag.String("f", "", "config file path")
+	)
+	flag.Parse()
+	if *conf == "" {
+		panic("webpure config file not found...")
+	}
+	initConfig(*conf)
+}
+
+func main() {
+	conf := GetConfig()
 	h := server.Default(
-		server.WithHostPorts(*addr),
+		server.WithHostPorts(":"+conf.Addr),
 		server.WithExitWaitTime(time.Second),
 	)
-	h.StaticFS("/", &app.FS{
-		Root:               dir + "/",
-		IndexNames:         []string{"index.html"},
+	h.StaticFS(conf.Location, &app.FS{
+		Root:               conf.Root + "/",
+		IndexNames:         []string{conf.Index},
 		GenerateIndexPages: false,
 		Compress:           false,
 		PathNotFound:       NotFound,
