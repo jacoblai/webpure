@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -38,6 +40,13 @@ func initConfig(conf string) {
 }
 
 func loadConfig(conf string, fail bool) {
+	if strings.HasPrefix(conf, ".") {
+		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		conf = strings.Replace(conf, ".", dir, 1)
+	}
 	directives, err := nginxparser.New(nil).ParseFile(conf)
 	if err != nil {
 		log.Println("open config: ", err)
