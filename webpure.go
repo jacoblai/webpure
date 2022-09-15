@@ -7,9 +7,12 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"log"
+	"sync"
 	"syscall"
 	"time"
 )
+
+var wg sync.WaitGroup
 
 func init() {
 	var rLimit syscall.Rlimit
@@ -31,19 +34,30 @@ func init() {
 }
 
 func main() {
-	conf := GetConfig()
-	h := server.Default(
-		server.WithHostPorts(":"+conf.Addr),
-		server.WithExitWaitTime(time.Second),
-	)
-	h.StaticFS(conf.Location, &app.FS{
-		Root:               conf.Root + "/",
-		IndexNames:         []string{conf.Index},
-		GenerateIndexPages: false,
-		Compress:           false,
-		PathNotFound:       NotFound,
-	})
-	h.Spin()
+	confs := GetConfig()
+	if len(confs) <= 0 {
+		log.Fatal("webpure not has website config start...")
+	}
+	for _, cf := range confs {
+		log.Println(cf.ServerName, "site online...")
+		wg.Add(1)
+		go func(conf Config) {
+			defer wg.Done()
+			h := server.Default(
+				server.WithHostPorts(":"+conf.Addr),
+				server.WithExitWaitTime(time.Second),
+			)
+			h.StaticFS(conf.Location, &app.FS{
+				Root:               conf.Root + "/",
+				IndexNames:         []string{conf.Index},
+				GenerateIndexPages: false,
+				Compress:           false,
+				PathNotFound:       NotFound,
+			})
+			h.Spin()
+		}(cf)
+	}
+	wg.Wait()
 }
 
 func NotFound(c context.Context, ctx *app.RequestContext) {

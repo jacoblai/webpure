@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	nginxparser "github.com/faceair/nginx-parser"
 	"github.com/tidwall/gjson"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,7 +16,7 @@ import (
 )
 
 var (
-	config     Config
+	config     = make(map[string]Config)
 	configLock = new(sync.RWMutex)
 )
 
@@ -43,78 +45,103 @@ func loadConfig(conf string, fail bool) {
 	if strings.HasPrefix(conf, ".") {
 		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 		if err != nil {
-			log.Fatal(err)
+			log.Println("open config: ", err)
+			if fail {
+				os.Exit(1)
+			}
 		}
 		conf = strings.Replace(conf, ".", dir, 1)
 	}
-	directives, err := nginxparser.New(nil).ParseFile(conf)
+
+	if ok, _ := IsDirectory(conf); !ok {
+		log.Println("open config: ", "path not directory")
+		if fail {
+			os.Exit(1)
+		}
+	}
+
+	files, err := ioutil.ReadDir(conf)
 	if err != nil {
 		log.Println("open config: ", err)
 		if fail {
 			os.Exit(1)
 		}
 	}
-	body, err := json.MarshalIndent(directives, "", "  ")
-	if err != nil {
-		log.Println("open config: ", err)
-		if fail {
-			os.Exit(1)
-		}
-	}
 
-	temp := gjson.ParseBytes(body)
-	addr := temp.Get(`0.block.#(directive="listen").args.0`)
-	if !addr.Exists() {
-		log.Println("open config: ", "listen not found")
-		if fail {
-			os.Exit(1)
+	for _, file := range files {
+		if filepath.Ext(file.Name()) != ".conf" {
+			//log.Println(file.Name(), "config file must by ext (.conf)")
+			continue
 		}
-	}
-
-	rot := temp.Get(`0.block.#(directive="root").args.0`)
-	if !rot.Exists() {
-		log.Println("open config: ", "root not found")
-		if fail {
-			os.Exit(1)
+		directives, err := nginxparser.New(nil).ParseFile(conf + file.Name())
+		if err != nil {
+			log.Println("open config: ", err)
+			if fail {
+				os.Exit(1)
+			}
 		}
-	}
-
-	idx := temp.Get(`0.block.#(directive="index").args.0`)
-	if !rot.Exists() {
-		log.Println("open config: ", "index not found")
-		if fail {
-			os.Exit(1)
+		body, err := json.MarshalIndent(directives, "", "  ")
+		if err != nil {
+			log.Println("open config: ", err)
+			if fail {
+				os.Exit(1)
+			}
 		}
-	}
 
-	svName := temp.Get(`0.block.#(directive="server_name").args.0`)
-	if !rot.Exists() {
-		log.Println("open config: ", "server_name not found")
-		if fail {
-			os.Exit(1)
+		temp := gjson.ParseBytes(body)
+		addr := temp.Get(`0.block.#(directive="listen").args.0`)
+		if !addr.Exists() {
+			log.Println("open config: ", "listen not found")
+			if fail {
+				os.Exit(1)
+			}
 		}
-	}
 
-	lc := temp.Get(`0.block.#(directive="location").args.0`)
-	if !rot.Exists() {
-		log.Println("open config: ", "location not found")
-		if fail {
-			os.Exit(1)
+		rot := temp.Get(`0.block.#(directive="root").args.0`)
+		if !rot.Exists() {
+			log.Println("open config: ", "root not found")
+			if fail {
+				os.Exit(1)
+			}
 		}
-	}
 
-	configLock.Lock()
-	config = Config{
-		Addr:       addr.String(),
-		Root:       rot.String(),
-		Index:      idx.String(),
-		ServerName: svName.String(),
-		Location:   lc.String(),
+		idx := temp.Get(`0.block.#(directive="index").args.0`)
+		if !rot.Exists() {
+			log.Println("open config: ", "index not found")
+			if fail {
+				os.Exit(1)
+			}
+		}
+
+		svName := temp.Get(`0.block.#(directive="server_name").args.0`)
+		if !rot.Exists() {
+			log.Println("open config: ", "server_name not found")
+			if fail {
+				os.Exit(1)
+			}
+		}
+
+		lc := temp.Get(`0.block.#(directive="location").args.0`)
+		if !rot.Exists() {
+			log.Println("open config: ", "location not found")
+			if fail {
+				os.Exit(1)
+			}
+		}
+
+		configLock.Lock()
+		config[path.Base(file.Name())] = Config{
+			Addr:       addr.String(),
+			Root:       rot.String(),
+			Index:      idx.String(),
+			ServerName: svName.String(),
+			Location:   lc.String(),
+		}
+		configLock.Unlock()
 	}
-	configLock.Unlock()
 }
 
-func GetConfig() Config {
+func GetConfig() map[string]Config {
 	configLock.RLock()
 	defer configLock.RUnlock()
 	return config
