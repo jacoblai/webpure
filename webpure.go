@@ -65,10 +65,10 @@ func startSvc() {
 		log.Fatal("webpure not has website config start...")
 	}
 	for _, cf := range confs {
-		log.Println(cf.ServerName, cf.Addr, "online")
+		log.Println(cf.ServerName, cf.Listen, "online")
 		go func(conf Config) {
 			h := server.Default(
-				server.WithHostPorts(conf.ServerName + ":" + conf.Addr),
+				server.WithHostPorts(conf.ServerName + ":" + conf.Listen),
 			)
 			if !strings.HasSuffix(conf.Root, "/") {
 				conf.Root += "/"
@@ -90,5 +90,5 @@ func startSvc() {
 }
 
 func NotFound(c context.Context, ctx *app.RequestContext) {
-	ctx.String(consts.StatusOK, "page not found")
+	ctx.String(consts.StatusNotFound, "page not found")
 }

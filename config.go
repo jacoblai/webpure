@@ -25,7 +25,7 @@ var (
 
 type Config struct {
 	ServerName string
-	Addr       string
+	Listen     string
 	Index      string
 	Root       string
 	Location   string
@@ -103,8 +103,8 @@ func loadConfig(conf string, fail bool) {
 		}
 
 		temp := gjson.ParseBytes(body)
-		addr := temp.Get(`0.block.#(directive="listen").args.0`)
-		if !addr.Exists() {
+		listen := temp.Get(`0.block.#(directive="listen").args.0`)
+		if !listen.Exists() {
 			log.Println("open config: ", "listen not found")
 			if fail {
 				os.Exit(1)
@@ -145,7 +145,7 @@ func loadConfig(conf string, fail bool) {
 
 		configLock.Lock()
 		config[path.Base(file.Name())] = Config{
-			Addr:       addr.String(),
+			Listen:     listen.String(),
 			Root:       rot.String(),
 			Index:      idx.String(),
 			ServerName: svName.String(),
