@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/cloudwego/hertz/pkg/app/server"
 	nginxparser "github.com/faceair/nginx-parser"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	config     = make(map[string]Config)
+	config     = make(map[string][]Config)
 	configLock = new(sync.RWMutex)
 )
 
@@ -48,11 +48,13 @@ func initConfig(conf string) {
 
 func closeAllSvc() {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	for n, svc := range svcs {
-		_ = svc.Shutdown(ctx)
-		log.Println(n, "shutdown")
-	}
-	svcs = make(map[string]*server.Hertz)
+	Servers.Range(func(n, svc any) bool {
+		_ = svc.(*http.Server).Shutdown(ctx)
+		return true
+	})
+	config = make(map[string][]Config)
+	Servers = sync.Map{}
+	HostSets = sync.Map{}
 }
 
 func loadConfig(conf string, fail bool) {
@@ -143,19 +145,32 @@ func loadConfig(conf string, fail bool) {
 			}
 		}
 
+		addr := net.ParseIP(svName.String())
+		if addr == nil {
+			hostName, _ := net.LookupHost(svName.String())
+			if len(hostName) == 0 {
+				log.Println("err: load config", svName.String(), "is not ip or domain")
+				continue
+			}
+		}
 		configLock.Lock()
-		config[path.Base(file.Name())] = Config{
+		cfs, ok := config[listen.String()]
+		if !ok {
+			cfs = make([]Config, 0)
+		}
+		cfs = append(cfs, Config{
 			Listen:     listen.String(),
 			Root:       rot.String(),
 			Index:      idx.String(),
 			ServerName: svName.String(),
 			Location:   lc.String(),
-		}
+		})
+		config[listen.String()] = cfs
 		configLock.Unlock()
 	}
 }
 
-func GetConfig() map[string]Config {
+func GetConfig() map[string][]Config {
 	configLock.RLock()
 	defer configLock.RUnlock()
 	return config
