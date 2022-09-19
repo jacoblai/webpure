@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,6 +28,9 @@ type Config struct {
 	Index      string
 	Root       string
 	Location   string
+	Ssl        string
+	Pem        string
+	key        string
 }
 
 func initConfig(conf string) {
@@ -48,12 +50,11 @@ func initConfig(conf string) {
 
 func closeAllSvc() {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	Servers.Range(func(n, svc any) bool {
-		_ = svc.(*http.Server).Shutdown(ctx)
+	HostSets.Range(func(_, v any) bool {
+		_ = v.(*HostPayload).Svc.Shutdown(ctx)
 		return true
 	})
 	config = make(map[string][]Config)
-	Servers = sync.Map{}
 	HostSets = sync.Map{}
 }
 
@@ -113,6 +114,8 @@ func loadConfig(conf string, fail bool) {
 			}
 		}
 
+		ssl := temp.Get(`0.block.#(directive="listen").args.1`)
+
 		rot := temp.Get(`0.block.#(directive="root").args.0`)
 		if !rot.Exists() {
 			log.Println("open config: ", "root not found")
@@ -145,6 +148,9 @@ func loadConfig(conf string, fail bool) {
 			}
 		}
 
+		pem := temp.Get(`0.block.#(directive="ssl_certificate").args.0`)
+		key := temp.Get(`0.block.#(directive="ssl_certificate_key").args.0`)
+
 		addr := net.ParseIP(svName.String())
 		if addr == nil {
 			hostName, _ := net.LookupHost(svName.String())
@@ -158,13 +164,23 @@ func loadConfig(conf string, fail bool) {
 		if !ok {
 			cfs = make([]Config, 0)
 		}
-		cfs = append(cfs, Config{
+		cf := Config{
 			Listen:     listen.String(),
 			Root:       rot.String(),
 			Index:      idx.String(),
 			ServerName: svName.String(),
 			Location:   lc.String(),
-		})
+		}
+		if ssl.Exists() {
+			cf.Ssl = ssl.String()
+		}
+		if pem.Exists() {
+			cf.Pem = pem.String()
+		}
+		if key.Exists() {
+			cf.key = key.String()
+		}
+		cfs = append(cfs, cf)
 		config[listen.String()] = cfs
 		configLock.Unlock()
 	}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type SHandler struct {
@@ -12,8 +13,19 @@ type SHandler struct {
 }
 
 func (h SHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if spa, ok := HostSets.Load(r.Host); ok && spa != nil {
-		handler := spa.(*SHandler)
+	k := r.Host
+	ur := strings.Split(r.Host, ":")
+	if r.TLS != nil {
+		if len(ur) == 1 {
+			k += ":443"
+		}
+	} else {
+		if len(ur) == 1 {
+			k += ":80"
+		}
+	}
+	if playLoad, ok := HostSets.Load(k); ok && playLoad != nil {
+		handler := playLoad.(*HostPayload).Had
 		path, err := filepath.Abs(r.URL.Path)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -13,8 +13,16 @@ import (
 	"time"
 )
 
-var Servers sync.Map
+//var HostSets = make(map[string]*HostPayload)
+//var Hlc sync.Mutex
+
 var HostSets sync.Map
+
+type HostPayload struct {
+	Had  *SHandler
+	Svc  *http.Server
+	Conf Config
+}
 
 func init() {
 	var rLimit syscall.Rlimit
@@ -72,17 +80,30 @@ func startSvc() {
 					WriteTimeout: 5 * time.Second,
 					ReadTimeout:  5 * time.Second,
 				}
-				HostSets.Store(pvHost, &spa)
-				Servers.Store(pvHost, srv)
 				has := false //share port more than one site
-				Servers.Range(func(k, _ any) bool {
-					if strings.Split(k.(string), ":")[1] == conf.Listen {
+				HostSets.Range(func(_, v any) bool {
+					if v.(*HostPayload).Conf.Listen == conf.Listen {
 						has = true
 						return false
 					}
 					return true
 				})
-				if !has {
+				if has {
+					continue
+				}
+				HostSets.Store(pvHost, &HostPayload{
+					Had:  &spa,
+					Svc:  srv,
+					Conf: conf,
+				})
+				log.Println(pvHost)
+				if conf.Ssl == "ssl" {
+					go func() {
+						if err := srv.ListenAndServeTLS(conf.Pem, conf.key); err != nil {
+							log.Println(err)
+						}
+					}()
+				} else {
 					go func() {
 						if err := srv.ListenAndServe(); err != nil {
 							log.Println(err)
