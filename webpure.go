@@ -13,9 +13,6 @@ import (
 	"time"
 )
 
-//var HostSets = make(map[string]*HostPayload)
-//var Hlc sync.Mutex
-
 var HostSets sync.Map
 
 type HostPayload struct {
