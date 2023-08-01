@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	nginxparser "github.com/faceair/nginx-parser"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -77,7 +76,7 @@ func loadConfig(conf string, fail bool) {
 		}
 	}
 
-	files, err := ioutil.ReadDir(conf)
+	files, err := os.ReadDir(conf)
 	if err != nil {
 		log.Println("open config: ", err)
 		if fail {
