@@ -70,7 +70,7 @@ func startSvc() {
 				router := mux.NewRouter()
 				spa := SHandler{StaticPath: conf.Root, IndexPage: conf.Index}
 				router.PathPrefix(conf.Location).Handler(spa)
-				pvHost := conf.ServerName + ":" + conf.Listen
+				pvHost := ":" + conf.Listen
 				srv := &http.Server{
 					Handler:      router,
 					Addr:         pvHost,
@@ -88,7 +88,7 @@ func startSvc() {
 				if has {
 					continue
 				}
-				HostSets.Store(pvHost, &HostPayload{
+				HostSets.Store(conf.ServerName+pvHost, &HostPayload{
 					Had:  &spa,
 					Svc:  srv,
 					Conf: conf,
