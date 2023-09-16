@@ -58,22 +58,12 @@ func closeAllSvc() {
 }
 
 func loadConfig(conf string, fail bool) {
-	if strings.HasPrefix(conf, ".") {
-		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-		if err != nil {
-			log.Println("open config: ", err)
-			if fail {
-				os.Exit(1)
-			}
-		}
-		conf = strings.Replace(conf, ".", dir, 1)
+	fileInfo, err := os.Stat(conf)
+	if err != nil {
+		log.Fatal("open config: ", err)
 	}
-
-	if ok, _ := IsDirectory(conf); !ok {
-		log.Println("open config: ", "path not directory")
-		if fail {
-			os.Exit(1)
-		}
+	if !fileInfo.IsDir() {
+		log.Fatal("open config: ", "path not directory")
 	}
 
 	files, err := os.ReadDir(conf)
@@ -89,7 +79,11 @@ func loadConfig(conf string, fail bool) {
 			//log.Println(file.Name(), "config file must by ext (.conf)")
 			continue
 		}
-		directives, err := nginxparser.New(nil).ParseFile(conf + file.Name())
+		fPath := conf
+		if !strings.HasSuffix(conf, "/") {
+			fPath += "/"
+		}
+		directives, err := nginxparser.New(nil).ParseFile(fPath + file.Name())
 		if err != nil {
 			log.Println("open config: ", err)
 			if fail {

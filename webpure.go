@@ -34,7 +34,7 @@ func init() {
 
 func main() {
 	var (
-		conf = flag.String("f", "", "config file path")
+		conf = flag.String("f", "./", "config file path")
 	)
 	flag.Parse()
 	log.Println("WebPure V1.0.0")
