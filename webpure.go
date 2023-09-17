@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/gorilla/mux"
+	"golang.org/x/sys/unix"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -62,52 +65,55 @@ func startSvc() {
 		log.Fatal("webpure not has website config start...")
 	}
 	for _, cfs := range configs {
-		go func(conFs []Config) {
-			for _, conf := range conFs {
-				if !strings.HasSuffix(conf.Root, "/") {
-					conf.Root += "/"
-				}
-				router := mux.NewRouter()
-				spa := SHandler{StaticPath: conf.Root, IndexPage: conf.Index}
-				router.PathPrefix(conf.Location).Handler(spa)
-				pvHost := ":" + conf.Listen
-				srv := &http.Server{
-					Handler:      router,
-					Addr:         pvHost,
-					WriteTimeout: 5 * time.Second,
-					ReadTimeout:  5 * time.Second,
-				}
-				has := false //share port more than one site
-				HostSets.Range(func(_, v any) bool {
-					if v.(*HostPayload).Conf.Listen == conf.Listen {
-						has = true
-						return false
-					}
-					return true
-				})
-				if has {
-					continue
-				}
-				HostSets.Store(conf.ServerName+pvHost, &HostPayload{
-					Had:  &spa,
-					Svc:  srv,
-					Conf: conf,
-				})
-				log.Println(pvHost)
-				if conf.Ssl == "ssl" {
-					go func() {
-						if err := srv.ListenAndServeTLS(conf.Pem, conf.key); err != nil {
-							log.Println(err)
-						}
-					}()
-				} else {
-					go func() {
-						if err := srv.ListenAndServe(); err != nil {
-							log.Println(err)
-						}
-					}()
-				}
+		for _, conf := range cfs {
+			if !strings.HasSuffix(conf.Root, "/") {
+				conf.Root += "/"
 			}
-		}(cfs)
+			router := mux.NewRouter()
+			spa := SHandler{StaticPath: conf.Root, IndexPage: conf.Index}
+			router.PathPrefix(conf.Location).Handler(spa)
+			pvHost := ":" + conf.Listen
+			srv := &http.Server{
+				Handler:      router,
+				Addr:         pvHost,
+				WriteTimeout: 5 * time.Second,
+				ReadTimeout:  5 * time.Second,
+			}
+			lc := net.ListenConfig{
+				Control: func(network, address string, c syscall.RawConn) error {
+					var socketErr error
+					err := c.Control(func(fd uintptr) {
+						socketErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+					})
+					if err != nil {
+						return err
+					}
+					return socketErr
+				},
+			}
+			ln, err := lc.Listen(context.Background(), "tcp", pvHost)
+			if err != nil {
+				panic(err)
+			}
+			if conf.Ssl == "ssl" {
+				go func() {
+					if err := srv.ServeTLS(ln, conf.Pem, conf.key); err != nil {
+						log.Println(err)
+					}
+				}()
+			} else {
+				go func() {
+					if err := srv.Serve(ln); err != nil {
+						log.Println(err)
+					}
+				}()
+			}
+			HostSets.Store(conf.ServerName+pvHost, &HostPayload{
+				Had:  &spa,
+				Svc:  srv,
+				Conf: conf,
+			})
+			log.Println(conf.ServerName + pvHost)
+		}
 	}
 }

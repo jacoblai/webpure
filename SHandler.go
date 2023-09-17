@@ -15,15 +15,14 @@ type SHandler struct {
 func (h SHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	k := r.Host
 	ur := strings.Split(r.Host, ":")
-	if r.TLS != nil {
-		if len(ur) == 1 {
+	if len(ur) == 1 {
+		if r.TLS != nil {
 			k += ":443"
-		}
-	} else {
-		if len(ur) == 1 {
+		} else {
 			k += ":80"
 		}
 	}
+
 	if playLoad, ok := HostSets.Load(k); ok && playLoad != nil {
 		handler := playLoad.(*HostPayload).Had
 		path, err := filepath.Abs(r.URL.Path)
