@@ -1,6 +1,6 @@
 # WebPure
 
-[![Release](https://img.shields.io/github/v/release/cloudwego/netpoll)](https://github.com/jacoblai/webpure/releases)
+[![Release](https://img.shields.io/github/v/release/jacoblai/webpure)](https://github.com/jacoblai/webpure/releases)
 [![License](https://img.shields.io/github/license/jacoblai/webpure)](https://github.com/jacoblai/webpure/blob/main/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jacoblai/webpure)](https://goreportcard.com/report/github.com/jacoblai/webpure)
 [![OpenIssue](https://img.shields.io/github/issues/jacoblai/webpure)](https://github.com/jacoblai/webpure/issues)
