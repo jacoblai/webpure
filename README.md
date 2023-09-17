@@ -30,8 +30,12 @@ WebPure 是 Golang 开发的无依赖 Web 服务器，兼容支持 Nginx配置�
     - `-f` 指定配置文件夹路径，会自动识别文件夹下所有以.conf扩展名的配置文件，默认为程序启动所在路径目录。
 
 ```
+//下载执行文件
 $ curl https://github.com/jacoblai/webpure/blob/main/bin/webpure_amd64_linux
+
+//升级可执行权限
 $ sudo chmod -x webpure_amd64_linux
+
 // /var/www/conf.d文件夹为自定义配置文件所有路径，雷同于Nginx的/etc/nginx/conf.d
 $ ./webpure_amd64_linux -f /var/www/conf.d
 ```
