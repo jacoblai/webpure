@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	nginxparser "github.com/faceair/nginx-parser"
+	"github.com/faceair/nginx-parser"
 	"github.com/tidwall/gjson"
 	"log"
 	"net"
