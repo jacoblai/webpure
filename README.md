@@ -31,7 +31,7 @@ WebPure 是 Golang 开发的无依赖 Web 服务器，兼容支持 Nginx配置�
 
 ```
 //下载执行文件
-$ curl https://github.com/jacoblai/webpure/blob/main/bin/webpure_amd64_linux
+$ curl https://github.com/jacoblai/webpure/releases/download/v1.0.0/webpure_amd64_linux
 
 //升级可执行权限
 $ sudo chmod -x webpure_amd64_linux
